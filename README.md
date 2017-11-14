@@ -10,7 +10,7 @@ It currently includes a couple Google apps acripts and one Google spreadsheet do
 
 For read-only access to the folder holding these, go here:
 
-[RetreatScript folder](https://docs.google.com/spreadsheets/d/1f9VqUxaZP9PuWN_0Pa-PFOgqNGi5KaWyEaxAXQCd1oQ/edit?usp=sharing)
+[RetreatScript folder](https://drive.google.com/drive/folders/1-NnoXKLPPubXE2-a4MsgHEuAiKUJerUT?usp=sharing)
 
-[To look at the scripts online with Google's script interface, you will need to make sure
-the Google Apps Script app is connected to your Drive account: Settings -> Manage Apps -> Connect more apps.]
+_Note: To look at the scripts online with Google's script interface, you will need to make sure
+the Google Apps Script app is connected to your Drive account: Settings -> Manage Apps -> Connect more apps._
