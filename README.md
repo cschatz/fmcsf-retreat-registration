@@ -13,4 +13,4 @@ For read-only access to a folder holding the core scripts and an anonymized set 
 
 This system is still the basis for the public-facing retreat registration process. The instance of the live form that is active for the current year is here:
 
-[https://tinyurl.com/44wrphdd]
+https://tinyurl.com/44wrphdd
