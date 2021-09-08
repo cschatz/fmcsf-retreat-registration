@@ -7,7 +7,7 @@ manager to use in room assignment, billing, etc.
 
 This project actually exists and is maintained on my Google account. 
 
-For read-only access to a folder holding the core scripts and an anonymized set of registration data, go here:
+For read-only access to a folder holding the core scripts and a small subset of registration data (with names replaced by pseudonyms), go here:
 
 [Registration System Scripts and Spreadsheet]()
 
