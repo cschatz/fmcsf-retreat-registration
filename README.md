@@ -1,4 +1,4 @@
-# fmcsf-retreat-registration
+# FMCSF Retreat Registration Scripts
 
 This repo represents the overall registration web and interface management system for FMCSF's annual Fall Retreat. 
 As attendees submit registration information on the site/form, inputs are validated and feedback given.
