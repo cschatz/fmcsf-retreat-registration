@@ -1,0 +1,416 @@
+<script>
+
+// Constants for 2019 prices
+const LUNCH = 13.59;           // from our RG contract, including tax
+const DINNER = 16.31;          // from our RG contract, including tax
+const BREAKFAST_RG = 11.42;    // from our RG contract, including tax
+const BREAKFAST_FMCSF = 5.00;  // added in 2018, per committee's decision about the "charge" for our internally-prepared breakfast
+const SIDEN = 69.50;           // from our RG contract (2 people/room)
+const LODGE = 38;              // from our RG contract
+const TENT = 12.50;            // from our RG contract
+
+// Fixed lists for names of fields and human-friendly equivalents
+const nights = ['fri_night', 'sat_night'];
+const meals = ['sat_bfast', 'sat_lunch', 'sat_dinner', 'sun_bfast', 'sun_lunch'];
+const nights_readable = ['Friday', 'Saturday'];
+const meals_readable = ['Saturday breakfast', 'Saturday lunch', 'Saturday dinner', 'Sunday breakfast', 'Sunday lunch'];
+
+// Overall state of users' entries in the #nights_and_meals table
+var registration_includes_children = false;
+var incomplete = true;
+var day_only = false;
+
+// Variables used to build confirmation email 
+var attendee_name_list = [];
+var attendee_age_list = [];
+var attendee_nights_list = [];
+var attendee_meals_list = [];
+var siden_breakdown_text = "";
+var lodge_breakdown_text = "";
+var tent_breakdown_text = "";
+var day_only_breakdown_text = "";
+var comfirmation_contents = "";
+var breakdown_map = {};
+var address = "";
+
+$(document).ready(function() { 
+  // A bunch of client-side stuff has to get set up once the page loads...
+  
+  // Apply validation rules to various portions of the form
+  setupValidation(); 
+  
+  // Add various callbacks to react as the user makes choices and adds information
+  addAttendeeAutofill(); 
+  addChildcareToggle(); 
+  addLodgingToggles();
+  addDietaryTracking();
+  addNightMealTracking();
+  
+  // Hide some sections of the form entirely, to be shown if/when relevant
+  hideSections();
+});
+
+
+function addAttendeeAutofill() {
+  $('#registrant_name').on('input', function() {
+    autofillFirstAttendee();
+  });
+}
+
+function hideSections() {
+  // Several divs should be hidden at launch
+  $('#grid_msg').hide();
+  $('#lodging_choice_section').hide();
+  $('#day_only_section').hide();
+  $('#childcare_note').hide();
+  $('#childcare_section').hide();
+  $('#everything_else').hide();
+}
+
+function addChildcareToggle() { 
+  // Toggle childcare note down based on childcare needed
+  $("input[name='need_childcare']").click(function () {
+      var yesno = $("input[name='need_childcare']:checked").val();
+      if (yesno == "yes") {
+          $('#childcare_note').fadeIn();
+      } else if (yesno == "no") {
+          $('#childcare_note').hide();
+      }
+  });  
+}
+
+function addLodgingToggles() {
+  // Once one option is chosen as 1st choice, hide the corresponding 2nd choice
+  $("input[name='lodging_first_choice']").click(function () {    
+    // hide the corresponding option among the second choices
+    $("input[name='lodging_second_choice']").show();
+    var id_to_hide = ($(this).get(0).id).replace("first", "second");  
+    $("input#" + id_to_hide).prop("checked", false);
+    $("input#" + id_to_hide).hide();
+    updateConfirmation();
+  });
+  $("input[name='lodging_second_choice']").click(function () {  
+    updateConfirmation();
+    });
+}
+
+function setupValidation() {
+  // Set up validation rules  
+  // Note: These are processed by the jQuery validation plugin whose source is in the Validate.html file
+  $("#registration_form").validate({
+    rules: {
+      registrant_name: { required: true },
+      registrant_email: { required: true, email: true },
+      registrant_phone: { required: true, phoneUS: true },
+
+      // don't require lodging preferences if day only
+      lodging_first_choice: { required: { depends: function(element) { return !day_only; } } },
+      lodging_second_choice: { required: { depends: function(element) { return !day_only; } } }, 
+      
+      alcohol_understood: { required: true },
+      water_understood: { required: true },
+      
+      // only require saying whether childcare is needed if children are in the group
+      need_childcare: { required: { depends: function(element) { return registration_includes_children; } } },
+     },
+    messages: {
+      registrant_name: "Please enter your name.",
+      registrant_email:  "Please enter a valid email address.",
+      lodging_first_choice: "Please select one of the choices.",
+      lodging_second_choice: "Please select one of the choices.",
+      alcohol_understood: "Please check here.",
+      water_understood: "Please check here.",
+      need_childcare: "Please tell us if you need childcare or not.",
+     },
+     errorPlacement: function(error, element) {
+       if (element.attr("name") == "lodging_first_choice") {
+           $("#first_choice_label").append("<br />");
+           $("#first_choice_label").append(error);
+       } else if (element.attr("name") == "lodging_second_choice") {
+           $("#second_choice_label").append("<br />");
+           $("#second_choice_label").append(error);       
+       } else {
+          error.insertAfter(element);
+       }
+     },
+     submitHandler: function(form) {
+        if (incomplete) {
+           $(window).scrollTop($('#group_info_section').position().top);
+           return false;
+        }
+       $('#register_button').hide();
+       $('#register_msg').html("<div class='warn'>Submitting your information, please wait...</div>");
+       address = $('#registrant_email').val();
+       google.script.run
+       .withSuccessHandler(reportSubmission)
+       .processForm($('#registration_form').get(0));
+      }
+  });
+}
+
+function autofillFirstAttendee() {
+   $('#attendee_1_name').val($('#registrant_name').val());
+   $('#attendee_1_age').val('18 or older');
+   collectInfo();
+}
+
+function addDietaryTracking() {
+    $('.dietary_input').on("input change", function() {
+       $(this).parent().parent().find("output").html($(this).val());
+    });
+}
+
+function reportSubmission() {
+$('#all').html("<p>Thank you for registering for Retreat. We look forward to seeing you there!</p>" +
+                "<p>An email confirmation has been sent to <b>" + address + "</b>.</p>");
+}
+
+function toggleChildren() {
+   if (registration_includes_children) {
+      $('#childcare_section').show();
+   } else {
+      $('#childcare_section').hide();
+   }
+}
+
+function addNightMealTracking() {
+   $('#nights_and_meals input').on("input", collectInfo);
+   $('#nights_and_meals input').click(collectInfo);
+   $('#nights_and_meals select').on("change", collectInfo);
+   $('#nights_and_meals input').on("change", collectInfo);
+}
+
+function collectInfo() {
+   // Parse the #nights_and_meals table to get attendance information
+   var nights_0to3 = 0;
+   var nights_4to12 = 0;
+   var nights_13to17 = 0;
+   var nights_18up = 0;
+   var lunches_13up = 0;
+   var dinners_13up = 0;
+   var bfast_sat_13up = 0;
+   var bfast_sun_13up = 0;
+   var people_in_group = 0;
+   incomplete = false;
+   registration_includes_children = false;
+   attendee_name_list = [];
+   attendee_age_list = [];
+   attendee_nights_list = [];
+   attendee_meals_list = [];
+   
+   for (var i = 1; i <= 6; i += 1)
+   {
+      var this_name;
+      var this_age;
+      var this_nights = [];
+      var this_meals = []
+      this_name = $('#attendee_' + i + '_name').val();
+      this_age = $('#attendee_' + i + '_age').val()
+      if (this_name != "")
+      {
+        people_in_group += 1;
+        if (this_age == "")
+        {
+          incomplete = true; // Name given without age
+        }
+        else
+        {
+           if (this_age == "18 or older") this_age = 18;
+           if (this_age == "under 1") this_age = 0;
+           if (this_age < 16)
+               registration_includes_children = true;
+           // Ready to see if they checked any nights or meals and start counting things
+           var no_choices_made = true;
+           for (var k = 0; k < nights.length; k++)
+           {
+              if ($('#attendee_' + i + '_' + nights[k]).is(':checked'))
+              {
+                 no_choices_made = false;
+                 if (this_age < 4) nights_0to3 += 1;
+                 else if (this_age < 13) nights_4to12 += 1;
+                 else if (this_age < 18) nights_13to17 += 1;
+                 else nights_18up += 1;
+                 
+                 this_nights.push(nights_readable[k]);
+              }
+           }
+           for (var k = 0; k < meals.length; k++)
+           {
+              var meal = meals[k];
+              if ($('#attendee_' + i + '_' + meal).is(':checked'))
+              {
+                 no_choices_made = false;
+                 if (this_age > 13) 
+                 {
+                    if (meal == "sat_dinner")
+                      dinners_13up += 1;
+                    else if (meal == "sat_bfast")
+                      bfast_sat_13up += 1;
+                    else if (meal == "sun_bfast")
+                      bfast_sun_13up += 1;
+                    else  // lunch
+                      lunches_13up += 1;
+                 }
+                 this_meals.push(meals_readable[k]);
+              }
+           }  
+           if (no_choices_made)  // If there is a row with a name but nothing checked, the form is incomplete
+             incomplete = true;
+        }
+      }
+      else if (this_age != "")
+      {
+        incomplete = true; // Age given without name
+      }
+      else
+      {
+           // If any boxes are checked on a row with no name AND no age,
+           //  then the form is incomplete.
+           for (var k = 0; k < nights.length; k++)
+           {
+              if ($('#attendee_' + i + '_' + nights[k]).is(':checked'))
+                 incomplete = true;
+           }
+           for (var k = 0; k < meals.length; k++)
+           {
+               if ($('#attendee_' + i + '_' + meals[k]).is(':checked'))
+                 incomplete = true;
+           }
+      }
+      
+      if (this_age == 18) this_age = "18 or older";
+      if (this_age == 0) this_age = "under 1";
+      if (this_name != "" && this_age != "") {
+         attendee_name_list.push(this_name);
+         attendee_age_list.push(this_age);
+         attendee_nights_list.push(this_nights.join(", "));
+         attendee_meals_list.push(this_meals.join(", "));
+      }
+   }
+   if (incomplete) {
+     $('#grid_msg').show();
+     $('#lodging_choice_section').hide();
+     $('#day_only_section').hide();
+     $('#everything_else').hide();
+   } else {
+     $('#grid_msg').hide();
+     if ((nights_18up + nights_4to12 + nights_13to17) > 0) {
+       $('#lodging_choice_section').show();
+       $('#day_only_section').hide();
+       day_only = false;
+       updateConfirmation();
+     } else {
+       $('#lodging_choice_section').hide();
+       $('#day_only_section').show();     
+       day_only = true;
+       updateConfirmation();
+     }
+     $('#everything_else').show();
+   }
+   toggleChildren();
+
+   // Adjust the dietary sliders so they max out at the current # of people in the group
+   $('#dietary input').attr('max', people_in_group);
+
+   var siden_price = SIDEN * nights_18up;
+   var lodge_price = LODGE * (nights_18up + nights_4to12 + nights_13to17);
+   var tent_price = TENT * (nights_18up + nights_4to12 + nights_13to17);
+   var meal_price = lunches_13up * LUNCH + dinners_13up * DINNER + bfast_sat_13up * BREAKFAST_FMCSF + bfast_sun_13up * BREAKFAST_RG;
+   var meal_report = "Lunches: " + lunches_13up + "<br />" + "Dinners: " + dinners_13up + "<br />"
+                      + "Saturday Breakfasts: " + bfast_sat_13up + "<br />" + "Sunday Breakfasts: " + bfast_sun_13up + "<br />";
+   var meal_report_plaintext = "Lunches: " + lunches_13up + "\n" + "Dinners: " + dinners_13up + "\n"
+                      + "Saturday Breakfasts: " + bfast_sat_13up + "\n" + "Sunday Breakfasts: " + bfast_sun_13up + "\n";
+   
+   
+   $('#siden_costs').html("Total adult nights: " + nights_18up + "<br />" 
+                       + meal_report + cost_range(siden_price + meal_price, false));               
+   siden_breakdown_text = "Total adult nights: " + nights_18up + "\n" + 
+                           meal_report_plaintext + cost_range(siden_price + meal_price, true);
+   
+   $('#day_only_costs').html(meal_report + cost_range(meal_price, false));               
+   day_only_breakdown_text = meal_report_plaintext + cost_range(meal_price, true); 
+   
+   $('#lodge_costs').html("Total adult and child nights: " + (nights_18up + nights_4to12 + nights_13to17) + "<br />" 
+                        + meal_report + cost_range(lodge_price + meal_price, false));              
+   lodge_breakdown_text = "Total adult and child nights: " + (nights_18up + nights_4to12 + nights_13to17) + "\n"
+                            + meal_report_plaintext + cost_range(lodge_price + meal_price, true);
+
+   $('#tent_costs').html("Total adult and child nights: " + (nights_18up + nights_4to12 + nights_13to17) + "<br />" 
+                        + meal_report + cost_range(tent_price + meal_price, false));              
+   tent_breakdown_text = "Total adult and child nights: " + (nights_18up + nights_4to12 + nights_13to17) + "\n" 
+                            + meal_report_plaintext + cost_range(tent_price + meal_price, true);
+                            
+                   
+   breakdown_map['Day Only'] = day_only_breakdown_text;
+   breakdown_map['Siden Center'] = siden_breakdown_text;
+   breakdown_map['Retreat Lodge'] = lodge_breakdown_text;
+   breakdown_map['Camping'] = tent_breakdown_text;
+}
+
+function updateConfirmation() {
+   confirmation_contents = "=================================================\n";
+   confirmation_contents += "GROUP MEMBERS\n";
+   confirmation_contents += "=================================================\n\n";
+   for (var i = 0; i < attendee_name_list.length; i++)
+   {
+     confirmation_contents += attendee_name_list[i] + "\n";
+     confirmation_contents += "   Age: " + attendee_age_list[i] + "\n";
+     confirmation_contents += "   Nights: ";
+     if (attendee_nights_list[i] == "") confirmation_contents += "none\n";
+     else confirmation_contents += attendee_nights_list[i] + "\n";
+     confirmation_contents += "   Meals: ";
+     if (attendee_meals_list[i] == "") confirmation_contents += "none\n";
+     else confirmation_contents += attendee_meals_list[i] + "\n";
+     
+     confirmation_contents += "\n";
+   }
+   
+   if (!day_only)
+   {
+     var choice1 = $("input[name='lodging_first_choice']:checked").val();
+     var choice2 = $("input[name='lodging_second_choice']:checked").val();
+   
+     confirmation_contents += "=================================================\n";
+     confirmation_contents += "ACCOMMODATIONS PREFEFENCES\n";
+     confirmation_contents += "=================================================\n\n";
+     confirmation_contents += "First Choice:  " + choice1 + "\n";
+     confirmation_contents += breakdown_map[choice1] + "\n";
+   
+     confirmation_contents += "Second Choice: " + choice2 + "\n";
+     confirmation_contents += breakdown_map[choice2] + "\n";
+   }
+   else
+   {
+      confirmation_contents += breakdown_map['Day Only'] + "\n";
+   }
+   
+   $('#debug').text(confirmation_contents);
+   $('#confirmation_contents').val(confirmation_contents);
+}
+
+function collectFields() {
+   $('#debug').text("");
+   var x = $('form#registration_form').serializeArray();
+   $.each(x, function(i, field){
+        $("#debug").append(field.name + ":" + field.value + "\n");
+    });
+}
+
+function cost_range(amt, plaintext)
+{
+   if (plaintext == true) {
+     result = "* AT-COST amount: $" + amt.toFixed(2) + "\n";
+     result += "* 20% below: $" + (amt * 0.80).toFixed(2) + "\n";
+     result += "* 25% above: $" + (amt * 1.25).toFixed(2) + "\n";
+   } else {
+     result = "<ul>";
+     result += "<li><u>At-cost</u> amount: <b>$" + amt.toFixed(2) + "</b>";
+     result += "<li>20% below: <b>$" + (amt * 0.80).toFixed(2) + "</b>";
+     result += "<li>25% above: <b>$" + (amt * 1.25).toFixed(2) + "</b>";
+     result += "</ul>";
+   }
+   return result;
+}
+
+
+</script>
