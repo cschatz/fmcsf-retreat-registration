@@ -6,11 +6,11 @@ Upon submission, the app generates a confirmation email and populates a Google s
 manager to use in room assignment, billing, etc.
 
 This project actually exists and is maintained on my Google account. 
-It currently includes a couple Google apps acripts and one Google spreadsheet document.
 
-For read-only access to the folder holding these, go here:
+For read-only access to a folder holding the core scripts and an anonymized set of registration data, go here:
 
-[RetreatScript folder](https://drive.google.com/drive/folders/1-NnoXKLPPubXE2-a4MsgHEuAiKUJerUT?usp=sharing)
+[Registration System Demo]()
 
-_Note: To look at the scripts online with Google's script interface, you will need to make sure
-the Google Apps Script app is connected to your Drive account: Settings -> Manage Apps -> Connect more apps._
+This system is still the basis for the public-facing retreat registration process. The instance of the live form that is active for the current year is here:
+
+[https://tinyurl.com/44wrphdd]
