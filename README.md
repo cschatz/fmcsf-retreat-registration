@@ -1,6 +1,6 @@
 # FMCSF Retreat Registration Scripts
 
-This repo represents the overall registration web and interface management system for FMCSF's annual Fall Retreat, built with Google's [Apps Script](https://developers.google.com/apps-script) framework. 
+This repo represents the overall registration management system for FMCSF's annual Fall Retreat, built with Google's [Apps Script](https://developers.google.com/apps-script) framework. 
 As attendees submit registration information on the site/form, inputs are validated and feedback given.
 Upon submission, the app generates a confirmation email and populates a Google spreadsheet for the registration
 manager to use in room assignment, billing, etc.
